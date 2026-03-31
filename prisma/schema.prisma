@@ -1,0 +1,239 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  phone        String?
+  role         Role        @default(MEMBER)
+  status       UserStatus  @default(PENDING)
+  invitedById  String?
+  invitedBy    User?       @relation("InvitedUsers", fields: [invitedById], references: [id])
+  invitedUsers User[]      @relation("InvitedUsers")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  projects               Project[]
+  goals                  Goal[]                @relation("GoalResponsible")
+  tasks                  Task[]
+  documents              Document[]
+  integrations           Integration[]
+  suggestedTasksFrom     SuggestedTask[]       @relation("SuggestedResponsible")
+  organizationMemberships OrganizationMember[]
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum UserStatus {
+  PENDING   // Convidado, ainda não logou
+  ACTIVE    // Logou pelo menos uma vez
+  INACTIVE  // Desativado
+}
+
+// Multi-tenant: Organização/Empresa
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     OrganizationMember[]
+  projects    Project[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole      @default(MEMBER)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  imageUrl    String?
+  publicToken String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  // Multi-tenant: Opcional por enquanto
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  goals       Goal[]
+  tasks       Task[]     @relation("ProjectTasks")
+  documents   Document[]
+}
+
+model Goal {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  targetValue   Float
+  currentValue  Float      @default(0)
+  unit          String
+  status        GoalStatus @default(ON_TRACK)
+  dueDate       DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  projectId     String
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  responsibleId String?
+  responsible   User?      @relation("GoalResponsible", fields: [responsibleId], references: [id])
+
+  tasks          Task[]
+  checkins       Checkin[]
+  documents      Document[]
+  suggestedTasks SuggestedTask[]
+  transcripts    MeetingTranscript[]
+}
+
+enum GoalStatus {
+  ON_TRACK
+  AT_RISK
+  BEHIND
+  COMPLETED
+}
+
+model Task {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  status          TaskStatus @default(PENDING)
+  dueDate         DateTime?
+  source          TaskSource @default(MANUAL)
+  origin          String?
+  responsibleName String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  goalId        String?
+  goal          Goal?    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  projectId     String?
+  project       Project? @relation("ProjectTasks", fields: [projectId], references: [id], onDelete: Cascade)
+
+  responsibleId String?
+  responsible   User?    @relation(fields: [responsibleId], references: [id])
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TaskSource {
+  MANUAL
+  MEETING_TRANSCRIPT
+  AGENT
+}
+
+model Checkin {
+  id         String   @id @default(cuid())
+  value      Float
+  notes      String?
+  weekNumber Int
+  createdAt  DateTime @default(now())
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  title     String
+  fileUrl   String
+  fileType  String
+  fileSize  Int?
+  createdAt DateTime @default(now())
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  goalId String?
+  goal   Goal?  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+}
+
+model MeetingTranscript {
+  id             String   @id @default(cuid())
+  title          String
+  transcriptText String
+  meetingDate    DateTime
+  processed      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  goalId         String?
+  goal           Goal?    @relation(fields: [goalId], references: [id])
+
+  suggestedTasks SuggestedTask[]
+}
+
+model SuggestedTask {
+  id              String              @id @default(cuid())
+  suggestedTitle  String
+  status          SuggestedTaskStatus @default(PENDING)
+  createdAt       DateTime            @default(now())
+
+  transcriptId String
+  transcript   MeetingTranscript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  suggestedGoalId String?
+  suggestedGoal   Goal?  @relation(fields: [suggestedGoalId], references: [id])
+
+  suggestedResponsibleId String?
+  suggestedResponsible   User?  @relation("SuggestedResponsible", fields: [suggestedResponsibleId], references: [id])
+}
+
+enum SuggestedTaskStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Integration {
+  id          String   @id @default(cuid())
+  type        String
+  isConnected Boolean  @default(false)
+  config      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+}
