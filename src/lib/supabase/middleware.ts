@@ -60,9 +60,10 @@ export async function updateSession(request: NextRequest) {
     // Prioriza x-forwarded-host (usado pelo Cloud Run), depois host
     const hostname = forwardedHost || host || request.nextUrl.host
 
-    // Se o hostname é 0.0.0.0 ou localhost, usa a URL de produção
+    // Se o hostname é 0.0.0.0 ou localhost, usa a URL de fallback
     if (hostname.includes('0.0.0.0') || hostname.includes('localhost')) {
-      return new URL(path, 'https://leve-okr-858949988639.southamerica-east1.run.app')
+      const fallback = process.env.NEXT_PUBLIC_APP_URL || 'https://okr.leveinovacao.com.br'
+      return new URL(path, fallback)
     }
 
     return new URL(path, `${protocol}://${hostname}`)

@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-// URL de produção fixa para evitar problemas com 0.0.0.0
-const PRODUCTION_URL = 'https://leve-okr-858949988639.southamerica-east1.run.app'
+// Fallback quando headers estão ausentes (ex: 0.0.0.0 interno do Cloud Run).
+// Pode ser sobrescrito via env var NEXT_PUBLIC_APP_URL.
+const FALLBACK_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://okr.leveinovacao.com.br'
 
 function getBaseUrl(request: Request): string {
   const url = new URL(request.url)
 
-  // Verifica headers do Cloud Run para obter o host real
+  // Verifica headers do Cloud Run / Cloudflare para obter o host real
   const forwardedHost = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
 
@@ -15,9 +16,9 @@ function getBaseUrl(request: Request): string {
     return `${forwardedProto}://${forwardedHost}`
   }
 
-  // Se o host é 0.0.0.0 ou localhost, usa URL de produção
+  // Se o host é 0.0.0.0 ou localhost, usa URL de fallback
   if (url.host.includes('0.0.0.0') || url.host.includes('localhost')) {
-    return PRODUCTION_URL
+    return FALLBACK_URL
   }
 
   return url.origin
