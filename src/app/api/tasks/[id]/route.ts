@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
-// GET /api/tasks/[id] - Buscar tarefa específica do usuário
+// GET /api/tasks/[id] - Buscar tarefa específica da organização
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Buscar tarefa verificando se pertence ao usuário
     const task = await prisma.task.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }  // Verificar ownership
+        OR: [
+          { goal: { project: scope } },
+          { project: scope },
+        ],
       },
       include: {
         responsible: true,
@@ -36,20 +40,23 @@ export async function GET(
   }
 }
 
-// PUT /api/tasks/[id] - Atualizar tarefa do usuário
+// PUT /api/tasks/[id] - Atualizar tarefa da organização
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se a tarefa pertence ao usuário
     const existingTask = await prisma.task.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }
+        OR: [
+          { goal: { project: scope } },
+          { project: scope },
+        ],
       }
     })
 
@@ -82,20 +89,23 @@ export async function PUT(
   }
 }
 
-// DELETE /api/tasks/[id] - Deletar tarefa do usuário
+// DELETE /api/tasks/[id] - Deletar tarefa da organização
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se a tarefa pertence ao usuário
     const existingTask = await prisma.task.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }
+        OR: [
+          { goal: { project: scope } },
+          { project: scope },
+        ],
       }
     })
 

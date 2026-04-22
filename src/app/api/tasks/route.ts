@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
-// GET /api/tasks - Listar tarefas do usuário
+// GET /api/tasks - Listar tarefas da organização
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const { searchParams } = new URL(request.url)
     const goalId = searchParams.get('goalId')
@@ -18,8 +20,8 @@ export async function GET(request: NextRequest) {
         ...(projectId && { projectId }),
         ...(status && { status: status as any }),
         OR: [
-          { goal: { project: { userId: user.id } } },
-          { project: { userId: user.id } },
+          { goal: { project: scope } },
+          { project: scope },
         ],
       },
       include: {
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const body = await request.json()
     const { title, description, status, dueDate, goalId, projectId, responsibleId, responsibleName, origin, source } = body
@@ -53,10 +56,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Goal ID or Project ID is required' }, { status: 400 })
     }
 
-    // Verificar ownership
+    // Verificar ownership via escopo de organização
     if (goalId) {
       const goal = await prisma.goal.findFirst({
-        where: { id: goalId, project: { userId: user.id } }
+        where: { id: goalId, project: scope }
       })
       if (!goal) {
         return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     if (projectId) {
       const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: user.id }
+        where: { id: projectId, ...scope }
       })
       if (!project) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })

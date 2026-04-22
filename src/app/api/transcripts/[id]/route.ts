@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/transcripts/[id] - Obter transcrição do usuário
+// GET /api/transcripts/[id] - Obter transcrição da organização
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Buscar transcrição verificando ownership via goal.project.userId
     const transcript = await prisma.meetingTranscript.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }
+        goal: { project: scope }
       },
       include: {
         goal: {
@@ -53,21 +54,21 @@ export async function GET(
   }
 }
 
-// PUT /api/transcripts/[id] - Atualizar transcrição do usuário
+// PUT /api/transcripts/[id] - Atualizar transcrição da organização
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
     const body = await request.json()
 
-    // Verificar se transcrição pertence ao usuário
     const existingTranscript = await prisma.meetingTranscript.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }
+        goal: { project: scope }
       }
     })
 
@@ -90,20 +91,20 @@ export async function PUT(
   }
 }
 
-// DELETE /api/transcripts/[id] - Deletar transcrição do usuário
+// DELETE /api/transcripts/[id] - Deletar transcrição da organização
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se transcrição pertence ao usuário
     const existingTranscript = await prisma.meetingTranscript.findFirst({
       where: {
         id,
-        goal: { project: { userId: user.id } }
+        goal: { project: scope }
       }
     })
 

@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { getCurrentOrgId, projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/projects - List all projects for the current user
+// GET /api/projects - List all projects in the user's organization
 export async function GET() {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const projects = await prisma.project.findMany({
-      where: {
-        userId: user.id,
-      },
+      where: scope,
       include: {
         goals: {
           include: {
@@ -65,7 +65,7 @@ export async function GET() {
   }
 }
 
-// POST /api/projects - Create a new project
+// POST /api/projects - Create a new project in the user's organization
 export async function POST(request: Request) {
   try {
     const user = await requireAuth()
@@ -80,12 +80,15 @@ export async function POST(request: Request) {
       )
     }
 
+    const organizationId = await getCurrentOrgId(user.id)
+
     const project = await prisma.project.create({
       data: {
         name,
         description,
         color: color || '#6366f1',
         userId: user.id,
+        organizationId,
       },
       include: {
         goals: true,

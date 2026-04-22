@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
@@ -10,24 +11,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// GET /api/documents - Listar documentos do usuário
+// GET /api/documents - Listar documentos da organização
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
     const goalId = searchParams.get('goalId')
 
-    // Documentos que pertencem ao usuário (via projeto ou meta)
+    // Documentos vinculados a project ou goal que pertencem à organização
     const documents = await prisma.document.findMany({
       where: {
         ...(projectId && { projectId }),
         ...(goalId && { goalId }),
         OR: [
-          { project: { userId: user.id } },
-          { goal: { project: { userId: user.id } } },
-          { uploadedById: user.id }
+          { project: scope },
+          { goal: { project: scope } },
         ]
       },
       include: {
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -60,10 +62,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 })
     }
 
-    // Verificar se o projeto ou meta pertence ao usuário
+    // Verificar se o projeto ou meta pertence à organização
     if (projectId) {
       const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: user.id }
+        where: { id: projectId, ...scope }
       })
       if (!project) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (goalId) {
       const goal = await prisma.goal.findFirst({
-        where: { id: goalId, project: { userId: user.id } }
+        where: { id: goalId, project: scope }
       })
       if (!goal) {
         return NextResponse.json({ error: 'Goal not found' }, { status: 404 })

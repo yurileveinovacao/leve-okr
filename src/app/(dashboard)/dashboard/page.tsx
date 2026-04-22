@@ -6,13 +6,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { CheckSquare, Clock, AlertTriangle, TrendingUp, Plus, FolderKanban, Users } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { redirect } from 'next/navigation'
 
 async function getProjectsWithGoals(userId: string) {
+  const scope = await projectScopeWhere(userId)
   const projects = await prisma.project.findMany({
-    where: { userId },
+    where: scope,
     orderBy: { createdAt: 'desc' },
     include: {
       goals: {
@@ -46,10 +48,12 @@ async function getProjectsWithGoals(userId: string) {
 }
 
 async function getStats(userId: string) {
+  const scope = await projectScopeWhere(userId)
+
   const pendingTasks = await prisma.task.count({
     where: {
       status: 'PENDING',
-      goal: { project: { userId } }
+      goal: { project: scope }
     }
   })
 
@@ -63,14 +67,14 @@ async function getStats(userId: string) {
         gte: now,
         lte: weekFromNow
       },
-      goal: { project: { userId } }
+      goal: { project: scope }
     }
   })
 
   const atRiskGoals = await prisma.goal.count({
     where: {
       status: { in: ['AT_RISK', 'BEHIND'] },
-      project: { userId }
+      project: scope
     }
   })
 
@@ -91,10 +95,11 @@ type TasksByResponsible = {
 }
 
 async function getTasksByResponsible(userId: string): Promise<TasksByResponsible[]> {
+  const scope = await projectScopeWhere(userId)
   const tasks = await prisma.task.findMany({
     where: {
       goal: {
-        project: { userId }
+        project: scope
       }
     },
     include: {

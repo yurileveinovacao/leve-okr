@@ -1,6 +1,50 @@
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+const LEVE_ORG_SLUG = 'leve-inovacao'
+const OWNER_EMAIL = 'yuri@leveinovacao.com.br'
+
+/**
+ * Garante que o usuário é membro da organização da Leve.
+ * Cria o OrganizationMember se não existir. Idempotente.
+ */
+async function ensureOrgMembership(userId: string, email: string) {
+  const org = await prisma.organization.findUnique({
+    where: { slug: LEVE_ORG_SLUG },
+    select: { id: true },
+  })
+
+  // Se a org ainda não foi criada (primeiro deploy), não bloqueia o login —
+  // apenas loga. O script setup-org-leve.mjs deve ter sido rodado.
+  if (!org) {
+    console.warn(
+      `[auth] Organization "${LEVE_ORG_SLUG}" não existe. Rode: node --env-file=.env scripts/setup-org-leve.mjs`
+    )
+    return
+  }
+
+  const existing = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: org.id,
+        userId,
+      },
+    },
+    select: { id: true },
+  })
+
+  if (existing) return
+
+  const isOwner = email.toLowerCase() === OWNER_EMAIL.toLowerCase()
+  await prisma.organizationMember.create({
+    data: {
+      organizationId: org.id,
+      userId,
+      role: isOwner ? 'OWNER' : 'ADMIN',
+    },
+  })
+}
+
 export async function getCurrentUser() {
   const supabase = await createClient()
 
@@ -36,6 +80,9 @@ export async function getCurrentUser() {
       }
     })
   }
+
+  // Garante que o user é membro da org Leve (idempotente)
+  await ensureOrgMembership(dbUser.id, dbUser.email)
 
   return {
     ...dbUser,

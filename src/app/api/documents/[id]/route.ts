@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
@@ -10,23 +11,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// GET /api/documents/[id] - Obter documento do usuário
+// GET /api/documents/[id] - Obter documento da organização
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Buscar documento verificando ownership
     const document = await prisma.document.findFirst({
       where: {
         id,
         OR: [
-          { project: { userId: user.id } },
-          { goal: { project: { userId: user.id } } },
-          { uploadedById: user.id }
+          { project: scope },
+          { goal: { project: scope } },
         ]
       },
       include: {
@@ -47,23 +47,22 @@ export async function GET(
   }
 }
 
-// DELETE /api/documents/[id] - Deletar documento do usuário
+// DELETE /api/documents/[id] - Deletar documento da organização
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se o documento pertence ao usuário
     const document = await prisma.document.findFirst({
       where: {
         id,
         OR: [
-          { project: { userId: user.id } },
-          { goal: { project: { userId: user.id } } },
-          { uploadedById: user.id }
+          { project: scope },
+          { goal: { project: scope } },
         ]
       }
     })

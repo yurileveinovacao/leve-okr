@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
@@ -10,18 +11,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// POST /api/projects/[id]/image - Upload de imagem do projeto
+// POST /api/projects/[id]/image - Upload de imagem do projeto (escopo org)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = params
 
-    // Verificar se o projeto existe e pertence ao usuário
     const project = await prisma.project.findFirst({
-      where: { id, userId: user.id }
+      where: { id, ...scope }
     })
 
     if (!project) {
@@ -96,18 +97,18 @@ export async function POST(
   }
 }
 
-// DELETE /api/projects/[id]/image - Remover imagem do projeto
+// DELETE /api/projects/[id]/image - Remover imagem do projeto (escopo org)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = params
 
-    // Verificar se o projeto existe e pertence ao usuário
     const project = await prisma.project.findFirst({
-      where: { id, userId: user.id }
+      where: { id, ...scope }
     })
 
     if (!project) {

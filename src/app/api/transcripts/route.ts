@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 import { getOpenAIClient, analyzeTranscript } from '@/lib/openai'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/transcripts - Listar transcrições do usuário
+// GET /api/transcripts - Listar transcrições da organização
 export async function GET() {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
-    // Buscar transcrições que pertencem ao usuário via goal.project.userId
-    // Transcrições sem goal vinculado NÃO são retornadas (problema de segurança)
+    // Transcrições cujo goal.project pertence à organização
+    // (Transcrições sem goal NÃO aparecem — ver backlog item 10)
     const transcripts = await prisma.meetingTranscript.findMany({
       where: {
-        goal: { project: { userId: user.id } }
+        goal: { project: scope }
       },
       include: {
         goal: {
@@ -62,6 +64,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const body = await request.json()
     const { title, transcriptText, meetingDate, goalId } = body
@@ -73,10 +76,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Se tem goalId, verificar se a meta pertence ao usuário
+    // Se tem goalId, verificar se a meta pertence à organização
     if (goalId) {
       const goal = await prisma.goal.findFirst({
-        where: { id: goalId, project: { userId: user.id } }
+        where: { id: goalId, project: scope }
       })
       if (!goal) {
         return NextResponse.json({ error: 'Goal not found' }, { status: 404 })

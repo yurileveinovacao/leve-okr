@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/goals/[id] - Buscar meta específica do usuário
+// GET /api/goals/[id] - Buscar meta específica da organização
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Buscar meta verificando se pertence ao usuário
     const goal = await prisma.goal.findFirst({
       where: {
         id,
-        project: { userId: user.id }  // Verificar ownership
+        project: scope
       },
       include: {
         responsible: true,
@@ -44,20 +45,20 @@ export async function GET(
   }
 }
 
-// PUT /api/goals/[id] - Atualizar meta do usuário
+// PUT /api/goals/[id] - Atualizar meta da organização
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se a meta pertence ao usuário
     const existingGoal = await prisma.goal.findFirst({
       where: {
         id,
-        project: { userId: user.id }
+        project: scope
       }
     })
 
@@ -93,20 +94,20 @@ export async function PUT(
   }
 }
 
-// DELETE /api/goals/[id] - Deletar meta do usuário
+// DELETE /api/goals/[id] - Deletar meta da organização
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verificar se a meta pertence ao usuário
     const existingGoal = await prisma.goal.findFirst({
       where: {
         id,
-        project: { userId: user.id }
+        project: scope
       }
     })
 

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/goals - Listar metas do usuário
+// GET /api/goals - Listar metas da organização
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     const goals = await prisma.goal.findMany({
       where: {
         ...(projectId && { projectId }),
-        project: { userId: user.id }  // Filtrar apenas metas de projetos do usuário
+        project: scope, // Escopo por organização (não por userId)
       },
       include: {
         responsible: true,
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const body = await request.json()
     const { title, description, targetValue, currentValue, unit, status, dueDate, projectId, responsibleId } = body
@@ -46,9 +49,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
-    // Verificar se o projeto pertence ao usuário
+    // Verificar se o projeto pertence à mesma organização
     const project = await prisma.project.findFirst({
-      where: { id: projectId, userId: user.id }
+      where: { id: projectId, ...scope }
     })
 
     if (!project) {

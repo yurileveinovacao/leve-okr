@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
     const body = await request.json()
     const { status, goalId } = body
@@ -22,9 +24,12 @@ export async function PUT(
       )
     }
 
-    // Buscar tarefa sugerida
-    const suggestedTask = await prisma.suggestedTask.findUnique({
-      where: { id }
+    // Buscar tarefa sugerida validando escopo via transcript.goal.project
+    const suggestedTask = await prisma.suggestedTask.findFirst({
+      where: {
+        id,
+        transcript: { goal: { project: scope } },
+      },
     })
 
     if (!suggestedTask) {
@@ -40,9 +45,9 @@ export async function PUT(
         )
       }
 
-      // Verificar se a meta existe
-      const goal = await prisma.goal.findUnique({
-        where: { id: goalId }
+      // Verificar se a meta existe e está no escopo da organização
+      const goal = await prisma.goal.findFirst({
+        where: { id: goalId, project: scope }
       })
 
       if (!goal) {

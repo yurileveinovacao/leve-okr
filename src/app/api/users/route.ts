@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { getCurrentOrgId } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/users - Listar usuários do time (apenas usuários convidados pelo atual ou o próprio)
+// GET /api/users - Listar membros da organização do usuário
 export async function GET() {
   try {
     const currentUser = await requireAuth()
+    const organizationId = await getCurrentOrgId(currentUser.id)
 
-    // Retorna apenas:
-    // 1. O próprio usuário
-    // 2. Usuários convidados pelo usuário atual
-    // 3. Usuários que convidaram o usuário atual (para ver o time do admin)
+    // Retorna todos os usuários que são membros da mesma organização
     const users = await prisma.user.findMany({
       where: {
-        OR: [
-          { id: currentUser.id },  // O próprio usuário
-          { invitedById: currentUser.id },  // Usuários que ele convidou
-          { id: currentUser.invitedById || '' },  // Quem o convidou (se existir)
-          // Também inclui outros membros do mesmo "time" (convidados pelo mesmo admin)
-          ...(currentUser.invitedById ? [{ invitedById: currentUser.invitedById }] : [])
-        ]
+        organizationMemberships: {
+          some: { organizationId },
+        },
       },
       orderBy: { name: 'asc' },
       select: {

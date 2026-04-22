@@ -1,22 +1,24 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/projects/[id] - Get a specific project
+// GET /api/projects/[id] - Get a specific project in the org
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
     const project = await prisma.project.findFirst({
       where: {
         id,
-        userId: user.id,
+        ...scope,
       },
       include: {
         goals: {
@@ -67,23 +69,23 @@ export async function GET(
   }
 }
 
-// PUT /api/projects/[id] - Update a project
+// PUT /api/projects/[id] - Update a project in the org
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
     const body = await request.json()
 
     const { name, description, color, imageUrl } = body
 
-    // Verify ownership
     const existingProject = await prisma.project.findFirst({
       where: {
         id,
-        userId: user.id,
+        ...scope,
       },
     })
 
@@ -123,20 +125,20 @@ export async function PUT(
   }
 }
 
-// DELETE /api/projects/[id] - Delete a project
+// DELETE /api/projects/[id] - Delete a project in the org
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
     const { id } = await params
 
-    // Verify ownership
     const existingProject = await prisma.project.findFirst({
       where: {
         id,
-        userId: user.id,
+        ...scope,
       },
     })
 

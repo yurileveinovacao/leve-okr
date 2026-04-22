@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { projectScopeWhere } from '@/lib/auth-scope'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/checkins - Listar check-ins do usuário
+// GET /api/checkins - Listar check-ins da organização
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const { searchParams } = new URL(request.url)
     const goalId = searchParams.get('goalId')
 
-    // Filtrar apenas check-ins de metas que pertencem ao usuário
     const checkins = await prisma.checkin.findMany({
       where: {
         ...(goalId && { goalId }),
-        goal: { project: { userId: user.id } }  // Filtrar por usuário
+        goal: { project: scope }
       },
       include: {
         goal: {
@@ -42,10 +43,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/checkins - Criar check-in (apenas para metas do usuário)
+// POST /api/checkins - Criar check-in (apenas para metas da organização)
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const scope = await projectScopeWhere(user.id)
 
     const body = await request.json()
     const { goalId, value, notes, weekNumber } = body
@@ -54,11 +56,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 })
     }
 
-    // Verificar se a meta pertence ao usuário
+    // Verificar se a meta pertence à organização
     const goal = await prisma.goal.findFirst({
       where: {
         id: goalId,
-        project: { userId: user.id }
+        project: scope
       }
     })
 
