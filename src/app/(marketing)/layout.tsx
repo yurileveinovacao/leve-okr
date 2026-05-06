@@ -1,5 +1,8 @@
 import Link from 'next/link'
+import Script from 'next/script'
 import { Button } from '@/components/ui/button'
+import { GTMProvider } from '@/components/marketing/gtm-provider'
+import { CookieConsent } from '@/components/marketing/cookie-consent'
 
 export default function MarketingLayout({
   children,
@@ -8,6 +11,10 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="min-h-screen bg-white">
+      <Script id="dataLayer-init" strategy="afterInteractive">
+        {`window.dataLayer = window.dataLayer || [];`}
+      </Script>
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -42,6 +49,9 @@ export default function MarketingLayout({
           </div>
         </div>
       </footer>
+
+      <GTMProvider />
+      <CookieConsent />
     </div>
   )
 }
