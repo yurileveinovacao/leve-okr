@@ -7,11 +7,28 @@ export default function LandingPage() {
   return (
     <div>
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background decorativo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-leve-verde/5 to-transparent" />
-        <div className="absolute top-20 right-0 w-96 h-96 bg-leve-verde/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-leve-verde/10 rounded-full blur-3xl" />
+      <section className="relative overflow-hidden bg-slate-100">
+        {/* Glow radial teal (igual ao site institucional) */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 50% at 50% 35%, #20c4a60f 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 75% 60%, #20c4a608 0%, transparent 60%)',
+          }}
+        />
+        {/* Grid 64×64 com fade radial nas bordas */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(#0412130f 1px, transparent 1px), linear-gradient(90deg, #0412130f 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+            maskImage:
+              'radial-gradient(ellipse 70% 60% at 50% 45%, black 20%, rgba(0,0,0,0.12) 100%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 70% 60% at 50% 45%, black 20%, rgba(0,0,0,0.12) 100%)',
+          }}
+        />
 
         <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
