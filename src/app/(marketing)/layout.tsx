@@ -1,6 +1,9 @@
-import Link from 'next/link'
+import './landing.css'
 import Script from 'next/script'
-import { Button } from '@/components/ui/button'
+import { Header } from './Header'
+import { Footer } from './Footer'
+import { BackToTop } from './BackToTop'
+import { AosInit } from './AosInit'
 import { GTMProvider } from '@/components/marketing/gtm-provider'
 import { CookieConsent } from '@/components/marketing/cookie-consent'
 
@@ -10,48 +13,52 @@ export default function MarketingLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-white">
+    <>
+      {/* Fontes Leve Design System + Bootstrap Icons + AOS */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      />
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/aos@2.3.1/dist/aos.css"
+      />
+
+      {/* importmap precisa ser processado antes de qualquer module script.
+          Inserido via dangerouslySetInnerHTML para preservar type="importmap". */}
+      <script
+        type="importmap"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            imports: {
+              three:
+                'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js',
+            },
+          }),
+        }}
+      />
+
+      {/* dataLayer init (necessário antes do GTM ser ativado pelo consentimento) */}
       <Script id="dataLayer-init" strategy="afterInteractive">
         {`window.dataLayer = window.dataLayer || [];`}
       </Script>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/logo-leve-full.png" alt="Leve" className="h-10" />
-          </Link>
+      <div className="leve-landing">
+        <Header />
+        <main>{children}</main>
+        <Footer />
+        <BackToTop />
+      </div>
 
-          <Link href="/login">
-            <Button className="bg-leve-verde hover:bg-leve-verde/90 text-white">
-              Entrar
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main>
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-leve-azul text-white py-8">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img src="/logo-leve.png" alt="Leve" className="h-6 w-6" />
-              <span className="font-logo font-bold">Leve Inovação</span>
-            </div>
-            <p className="text-white/60 text-sm">
-              © 2026 Leve Inovação® - Todos os direitos reservados
-            </p>
-          </div>
-        </div>
-      </footer>
-
+      <AosInit />
       <GTMProvider />
       <CookieConsent />
-    </div>
+    </>
   )
 }
